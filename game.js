@@ -24,7 +24,7 @@ function canChangeRow(rowDelta, playerFloor, playerRow, playerColumn, field) {
 }
 function getStepColumn(stepColumnDelta, stepRowDelta, floor, row, column, field) {
   // If already on border of field
-  if (column + stepColumnDelta <= 0 || column + stepColumnDelta >= field.columns) {
+  if (column + stepColumnDelta < 0 || column + stepColumnDelta >= field.columns) {
     return column;
   }
   // If obstacle in line and nothing on top
@@ -46,7 +46,12 @@ function getStepColumn(stepColumnDelta, stepRowDelta, floor, row, column, field)
   }
   return column;
 }
-function getStepFloor(stepColumnDelta, stepRowDelta, floor, row, column,field) {
+function getStepFloor(stepColumnDelta, stepRowDelta, floor, row, column, field) {
+  // If on border
+  if(row + stepRowDelta < 0 || row + stepRowDelta >= field.rows ||
+    column + stepColumnDelta < 0 || column + stepColumnDelta >= field.columns) {
+    return floor;
+  }
   // Right left movement climb
   if (floor + 1 < field.floors &&
     field[floor][row][column + stepColumnDelta] === 1 &&
