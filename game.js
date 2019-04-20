@@ -8,87 +8,58 @@ var field = getField(6, 10, 10, function valueForCoordinates(floor, row, column)
 field[3][4][4] = 1;
 field[3][6][6] = 1;
 field[4][6][6] = 1;
+field[2][9][5] = 0;
+field[1][9][5] = 0;
+
 var side_length = 50;
 var playerFloor = 3, playerRow = Math.floor(field.rows/2), playerColumn = Math.floor(field.columns/2);
+var playerActualFloor = playerFloor, playerActualRow = playerRow, playerActualColumn = playerColumn;
+var playerMovementFactor = 10;
 
 function update() {
+  if(playerFloor !== 0) {
+    while(field[playerFloor - 1][playerRow][playerColumn] === 0) {
+      playerFloor--;
+    }
+  }
+  // playerActualFloor += (playerFloor - playerActualFloor)/playerMovementFactor;
+  // playerActualRow += (playerRow - playerActualRow)/playerMovementFactor;
+  // playerActualColumn += (playerColumn- playerActualColumn)/playerMovementFactor;
 }
+
 function draw() {
   drawField(field, side_length, 300, 300, playerFloor, playerRow, playerColumn);
 }
-function canChangeColumn(columnDelta, playerFloor, playerRow, playerColumn, field) {
-  return playerColumn + columnDelta >= 0 && playerColumn + columnDelta < field.columns;
+function isMoveOutOfBounds(rowDelta, columnDelta, floor, row, column, field) {
+  return row + rowDelta < 0 || row + rowDelta > field.rows - 1 ||
+    column + columnDelta < 0 || column + columnDelta > field.columns - 1;
 }
-function canChangeRow(rowDelta, playerFloor, playerRow, playerColumn, field) {
-  return playerRow + rowDelta >= 0 && playerRow + rowDelta < field.rows;
+function canMoveStepForward(rowDelta, columnDelta, floor, row, column, field) {
+  // If block ahead
+  if (field[floor][row + rowDelta][column + columnDelta] === 1) {
+    return false;
+  }
+  // If going to fall more than two blocks
+  if (floor > 1 &&
+    field[floor - 1][row+rowDelta][column + columnDelta] === 0 &&
+    field[floor - 2][row+rowDelta][column + columnDelta] === 0) {
+    return false;
+  }
+  return true;
 }
-function getStepColumn(stepColumnDelta, stepRowDelta, floor, row, column, field) {
-  // If already on border of field
-  if (column + stepColumnDelta < 0 || column + stepColumnDelta >= field.columns) {
-    return column;
+function canClimbStepForward(rowDelta, columnDelta, floor, row, column, field) {
+  if (floor === field.floors - 1) {
+    return false;
   }
-  // If obstacle in line and nothing on top
-  if (floor + 1 < field.floors &&
-    field[floor][row][column + stepColumnDelta] === 1 &&
-    field[floor + 1][row][column + stepColumnDelta] === 0) {
-    return column + stepColumnDelta;
+  // If there is a block above
+  if (field[floor + 1][row][column] === 1) {
+    return false;
   }
-  // If going to fall more than two blocks in this direction
-  if (floor >= 2 &&
-    field[floor][row][column+stepColumnDelta] === 0 &&
-    field[floor - 1][row][column + stepColumnDelta] === 0 &&
-    field[floor - 2][row][column + stepColumnDelta] === 0) {
-    return row;
+
+  if (field[floor][row + rowDelta][column + columnDelta] === 1 &&
+      field[floor + 1][row + rowDelta][column + columnDelta] === 0) {
+    return true;
   }
-  // No obstacle in line
-  if (field[floor][row][column + stepColumnDelta] === 0) {
-    return column + stepColumnDelta;
-  }
-  return column;
-}
-function getStepFloor(stepColumnDelta, stepRowDelta, floor, row, column, field) {
-  // If on border
-  if(row + stepRowDelta < 0 || row + stepRowDelta >= field.rows ||
-    column + stepColumnDelta < 0 || column + stepColumnDelta >= field.columns) {
-    return floor;
-  }
-  // Right left movement climb
-  if (floor + 1 < field.floors &&
-    field[floor][row][column + stepColumnDelta] === 1 &&
-    field[floor + 1][row][column + stepColumnDelta] === 0) {
-    return floor + 1;
-  }
-  // Up down movement climb
-  if (floor + 1 < field.floors &&
-    field[floor][row + stepRowDelta][column] === 1 &&
-    field[floor + 1][row + stepRowDelta][column] === 0) {
-    return floor + 1;
-  }
-  return floor;
-}
-function getStepRow(stepColumnDelta, stepRowDelta, floor, row, column ,field) {
-  // If already on border of field
-  if (row + stepRowDelta < 0 || row + stepRowDelta >= field.rows) {
-    return row;
-  }
-  // If obstacle on line and nothing on top
-  if (floor + 1< field.floors &&
-    field[floor][row + stepRowDelta][column] === 1 &&
-    field[floor + 1][row + stepRowDelta][column] === 0) {
-    return row + stepRowDelta;
-  }
-  // If going to fall more than two blocks in this direction
-  if (floor >= 2 &&
-    field[floor][row+stepRowDelta][column] === 0 &&
-    field[floor - 1][row + stepRowDelta][column] === 0 &&
-    field[floor - 2][row + stepRowDelta][column] === 0) {
-    return row;
-  }
-  // No obstacle in line
-  if (field[floor][row + stepRowDelta][column] === 0) {
-    return row + stepRowDelta;
-  }
-  return row;
 }
 function keyup(key) {
   var columnDelta = 0, rowDelta = 0;
@@ -108,17 +79,15 @@ function keyup(key) {
   if(key === 68) {
     columnDelta = +1;
   }
-  var newFloor = getStepFloor(columnDelta, rowDelta, playerFloor, playerRow, playerColumn, field);
-  var newColumn = getStepColumn(columnDelta, rowDelta, playerFloor, playerRow, playerColumn, field);
-  var newRow = getStepRow(columnDelta, rowDelta, playerFloor, playerRow, playerColumn, field);
-
-  playerFloor = newFloor;
-  playerRow = newRow;
-  playerColumn = newColumn;
-
-  if(playerFloor > 0 &&
-    field[playerFloor - 1][playerRow][playerColumn] === 0) {
-    playerFloor--;
+  if(!isMoveOutOfBounds(rowDelta, columnDelta, playerFloor, playerRow, playerColumn, field)) {
+    if (canMoveStepForward(rowDelta, columnDelta, playerFloor, playerRow, playerColumn, field)) {
+      playerRow += rowDelta;
+      playerColumn += columnDelta;
+    } else if(canClimbStepForward(rowDelta, columnDelta, playerFloor, playerRow, playerColumn, field)) {
+      playerRow += rowDelta;
+      playerColumn += columnDelta;
+      playerFloor += 1;
+    }
   }
 }
 function mouseup() {
